@@ -1,0 +1,29 @@
+name: Preise aktualisieren
+
+on:
+  schedule:
+    - cron: '47 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Kartendatenbank holen
+        run: git clone --depth 1 https://github.com/tcgdex/cards-database /tmp/tcgdb
+      - name: Katalog und Preise bauen
+        run: python3 tools/build.py /tmp/tcgdb data
+      - name: Speichern
+        run: |
+          git config user.name "preis-update"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "Preise $(date +%F)"
+          git push
