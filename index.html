@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pokémon Karten-Tracker</title>
+<meta name="theme-color" content="#000080">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Karten">
+<style>
+/* Win98-Look ohne Fensterrahmen. Reiter Sammlung | Sets | Käufe | Konto. Diagramme im XP-Stil. */
+:root{
+  --face:#c0c0c0; --hi:#ffffff; --light:#dfdfdf; --shadow:#808080; --dark:#0a0a0a;
+  --ink:#000000; --paper:#ffffff; --muted:#4a4a4a; --line:#e3e3e3;
+  --title:#000080; --title2:#1084d0; --select:#000080; --select-ink:#ffffff;
+  --gain:#006400; --loss:#b00000; --tip:#ffffe1; --own:#e8f0ff;
+  --xp-blue:#245edb; --xp-fill:rgba(36,94,219,.22); --xp-grid:#e6e6e6; --xp-text:#555555;
+  --ui: Tahoma, "Segoe UI", Verdana, Geneva, sans-serif;
+  --mono: "Lucida Console", "Courier New", monospace;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--face);color:var(--ink);font:12px/1.4 var(--ui);padding-bottom:env(safe-area-inset-bottom,0px)}
+button,input,select{font:inherit;color:var(--ink)}
+img{max-width:100%}
+[hidden]{display:none!important}
+.wrap{max-width:1200px;margin-inline:auto;padding-inline:16px;padding-block:0 24px}
+
+.appbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:calc(6px + env(safe-area-inset-top,0px)) 16px 6px;color:#fff;background:linear-gradient(90deg,var(--title),var(--title2))}
+.appbar h1{font-size:14px;margin:0;flex:1;min-width:0}
+.appbar .meta{font-size:11px;opacity:.9}
+
+.sunken{box-shadow:inset -1px -1px var(--hi),inset 1px 1px var(--shadow),inset -2px -2px var(--light),inset 2px 2px var(--dark)}
+.btn{background:var(--face);border:0;min-height:23px;padding:3px 10px;cursor:pointer;white-space:nowrap;
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--light)}
+.btn:active:not(:disabled){box-shadow:inset -1px -1px var(--hi),inset 1px 1px var(--dark),inset -2px -2px var(--light),inset 2px 2px var(--shadow);padding-top:4px;padding-bottom:2px}
+.btn:disabled{color:var(--shadow);text-shadow:1px 1px var(--hi);cursor:default}
+.btn.add{font-weight:bold}
+.btn.sq{min-width:26px;padding:3px 0}
+.btn:focus-visible,.tabs button:focus-visible,.tile:focus-visible,.crow:focus-visible,.brow:focus-visible{outline:1px dotted var(--ink);outline-offset:-4px}
+.field{border:0;background:var(--paper);padding:3px 5px;min-height:23px;min-width:0;
+  box-shadow:inset -1px -1px var(--hi),inset 1px 1px var(--shadow),inset -2px -2px var(--light),inset 2px 2px var(--dark)}
+.field:focus{outline:none}
+.gain{color:var(--gain)} .loss{color:var(--loss)} .muted{color:var(--muted)}
+a{color:#0000ee}
+fieldset{border:1px solid var(--shadow);box-shadow:1px 1px 0 var(--hi),inset 1px 1px 0 var(--hi);margin:0;padding:10px;min-width:0}
+legend{padding:0 3px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.tabs{display:flex;padding:10px 4px 0;overflow-x:auto}
+.tabs button{background:var(--face);border:0;padding:4px 16px;cursor:pointer;position:relative;top:2px;white-space:nowrap;
+  box-shadow:inset 1px 1px var(--hi),inset -1px 0 var(--dark),inset -2px 0 var(--shadow);border-radius:3px 3px 0 0}
+.tabs button[aria-selected="true"]{top:0;padding:5px 18px 7px;margin:0 -2px;z-index:2;font-weight:bold}
+.panel{padding:10px;box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--light);display:grid;gap:10px}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.stat{background:var(--paper);padding:6px 10px;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi)}
+.stat span{display:block;color:var(--muted);font-size:11px}
+.stat b{font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.searchbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.searchbar #q{flex:1;min-width:180px;font-size:13px;min-height:27px}
+.hint{color:var(--muted);margin:0}
+
+.rows{background:var(--paper);padding:2px;overflow:auto}
+.rows.res{max-height:340px;margin-top:8px}
+.row{display:grid;grid-template-columns:36px 104px minmax(0,1fr) 84px auto;gap:4px 10px;align-items:center;padding:5px 6px;border-bottom:1px dotted var(--light);font-variant-numeric:tabular-nums}
+.row:last-child{border-bottom:0}
+.th{width:36px;height:50px;background:var(--light);display:block;object-fit:cover}
+.row .no{font:11px var(--mono);white-space:nowrap}
+.row .nm{min-width:0}
+.row .nm b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .nm small{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.row .pr{text-align:right;white-space:nowrap}
+.row .pr small{display:block;color:var(--muted);font-size:10px}
+.row .act{display:flex;gap:4px;justify-content:flex-end;align-items:center}
+.row.own{background:var(--own)}
+.have{font-size:11px;color:var(--gain);white-space:nowrap}
+.rows p{margin:0;padding:10px 8px}
+
+.mainrow{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:10px;align-items:start}
+.listhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.listhead .field{flex:1;min-width:140px}
+.coll{max-height:430px}
+.crow{display:grid;grid-template-columns:minmax(0,1fr) 40px 86px 90px 84px;gap:4px 10px;align-items:center;padding:5px 6px;border-bottom:1px dotted var(--light);cursor:pointer;font-variant-numeric:tabular-nums}
+.crow.h{cursor:default;background:var(--face);font-weight:bold;position:sticky;top:0;z-index:1;box-shadow:inset -1px -1px var(--shadow),inset 1px 1px var(--hi);border:0}
+.crow>span{text-align:right;white-space:nowrap}
+.crow>span:first-child{text-align:left;min-width:0}
+.crow b,.crow small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crow small{color:var(--muted);font-size:11px;font-weight:normal}
+.crow[aria-selected="true"]{background:var(--select);color:var(--select-ink)}
+.crow[aria-selected="true"] small,.crow[aria-selected="true"] .gain,.crow[aria-selected="true"] .loss,.crow[aria-selected="true"] .muted{color:var(--select-ink)}
+
+.det .top{display:flex;gap:12px;align-items:flex-start}
+.det .top>div{min-width:0}
+.cardimg{width:110px;flex:none;display:block;background:var(--paper);padding:3px}
+.cardimg img{display:block;width:100%;height:auto}
+.det .name{font-size:15px;font-weight:bold;margin:0;text-wrap:balance}
+.det .sub{color:var(--muted);margin:2px 0 8px}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 12px;align-items:center;margin:10px 0 0;font-variant-numeric:tabular-nums}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.kv .field{width:100%}
+.step{display:inline-flex;align-items:center;gap:6px}
+.step b{min-width:22px;text-align:center}
+.price{padding:8px 10px;background:var(--paper);box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi);font-variant-numeric:tabular-nums}
+.price b{font-size:18px}
+.links{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
+
+.charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.chart{background:#fff;height:210px;padding:2px}
+.chart canvas{display:block}
+.cap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 10px;margin-top:6px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.bar label{display:inline-flex;align-items:center;gap:6px}
+.bar .grow{flex:1;min-width:160px}
+.bar .grow .field{width:100%}
+.setsbox{background:var(--paper);padding:10px;max-height:640px;overflow:auto}
+.series{margin:0 0 14px}
+.series h3{font-size:12px;margin:0 0 6px;padding:2px 6px;background:var(--face);box-shadow:inset -1px -1px var(--shadow),inset 1px 1px var(--hi);display:flex;justify-content:space-between;gap:10px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.tile{background:var(--face);border:0;text-align:left;padding:8px 9px;cursor:pointer;display:grid;gap:6px;min-width:0;
+  box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--hi),inset -2px -2px var(--shadow),inset 2px 2px var(--light)}
+.tile:active{box-shadow:inset 1px 1px var(--dark),inset -1px -1px var(--hi),inset 2px 2px var(--shadow),inset -2px -2px var(--light)}
+.tile.has{background:var(--own)}
+.tile .logo{height:44px;display:flex;align-items:center;justify-content:center;background:var(--paper);box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi);padding:3px}
+.tile .logo img{max-height:38px;max-width:100%;object-fit:contain}
+.tile .top{display:flex;justify-content:space-between;gap:6px;align-items:center}
+.code{font:bold 12px/1 var(--mono);background:var(--paper);padding:4px 6px;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi);white-space:nowrap}
+.tile .t{font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prog{height:14px;background:var(--paper);padding:2px;box-shadow:inset 1px 1px var(--shadow),inset -1px -1px var(--hi)}
+.prog i{display:block;height:100%;background:repeating-linear-gradient(90deg,var(--select) 0 7px,transparent 7px 9px)}
+.prog-l{display:flex;justify-content:space-between;color:var(--muted);font-variant-numeric:tabular-nums}
+.sethead{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:8px}
+.sethead h2{font-size:15px;margin:0}
+.sethead .prog{width:180px}
+.sethead img{max-height:40px}
+
+.buyform{display:grid;grid-template-columns:minmax(0,2fr) 140px 110px auto auto;gap:6px;align-items:end}
+.buyform label{display:grid;gap:3px}
+.brow{display:grid;grid-template-columns:90px minmax(0,1fr) 100px;gap:10px;padding:6px;border-bottom:1px dotted var(--light);cursor:pointer;font-variant-numeric:tabular-nums}
+.brow>span:last-child{text-align:right}
+.brow[aria-selected="true"]{background:var(--select);color:var(--select-ink)}
+.err{color:var(--loss);margin:0;min-height:1em}
+
+.acc{display:grid;gap:10px;max-width:520px}
+.acc label{display:grid;gap:3px}
+.acc .btns{display:flex;gap:6px;flex-wrap:wrap}
+.login{max-width:420px;margin:24px auto;background:var(--face);padding:3px;box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--light),inset -2px -2px var(--shadow),inset 2px 2px var(--hi)}
+.login .tb,.dlg .tb{height:20px;display:flex;align-items:center;padding:0 4px;color:#fff;font-weight:bold;background:linear-gradient(90deg,var(--title),var(--title2))}
+.login form{padding:14px;display:grid;gap:10px}
+.login label{display:grid;gap:3px}
+.login .btns{display:flex;gap:6px;flex-wrap:wrap}
+
+.layer{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.12)}
+.dlg{width:min(420px,100%);background:var(--face);padding:3px;box-shadow:inset -1px -1px var(--dark),inset 1px 1px var(--light),inset -2px -2px var(--shadow),inset 2px 2px var(--hi)}
+.dlg .body{padding:12px;display:grid;gap:8px}
+.dlg .body label{display:grid;gap:3px}
+.dlg .btns{display:flex;justify-content:flex-end;gap:6px;padding:0 12px 12px}
+.toast{position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:70;max-width:min(340px,calc(100% - 24px));background:var(--tip);padding:7px 10px;box-shadow:inset 0 0 0 1px var(--dark),2px 2px 0 rgba(0,0,0,.25)}
+
+@media (max-width:900px){
+  .mainrow{grid-template-columns:minmax(0,1fr)}
+  .charts{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .appbar h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar .meta{flex-basis:100%;order:3}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .row{grid-template-columns:36px minmax(0,1fr) auto;grid-template-areas:"th nm pr" "th no act"}
+  .row .th{grid-area:th} .row .nm{grid-area:nm} .row .pr{grid-area:pr} .row .no{grid-area:no;color:var(--muted)} .row .act{grid-area:act}
+  .crow{grid-template-columns:minmax(0,1fr) auto}
+  .crow>span:nth-child(2),.crow>span:nth-child(3){display:none}
+  .crow.h{display:none}
+  .buyform{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .buyform label:first-child{grid-column:1/-1}
+  .coll,.setsbox{max-height:none}
+  .chart{height:180px}
+  .panel{padding:8px 6px}
+  .cardimg{width:90px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="appbar">
+  <img src="icons/icon-192.png" width="18" height="18" alt="">
+  <h1>Pokémon Karten-Tracker</h1>
+  <button class="btn" type="button" id="installBtn" hidden>App installieren</button>
+  <span class="meta" id="meta">Lade...</span>
+</header>
+
+<section class="login" id="login" hidden>
+  <div class="tb">Anmelden</div>
+  <form id="loginForm" novalidate>
+    <p class="hint">Melde dich mit deinem Konto an. Dann ist deine Sammlung auf PC und Handy dieselbe.</p>
+    <label>E-Mail <input class="field" id="lEmail" type="email" autocomplete="email" required></label>
+    <label>Passwort <input class="field" id="lPass" type="password" autocomplete="current-password" minlength="6" required></label>
+    <p class="err" id="lErr"></p>
+    <div class="btns"><button class="btn" type="submit">Anmelden</button><button class="btn" type="button" id="signupBtn">Neues Konto anlegen</button></div>
+  </form>
+</section>
+
+<div class="wrap" id="app" hidden>
+  <div class="tabs" role="tablist" aria-label="Bereiche">
+    <button role="tab" id="t-cards" aria-selected="true" data-tab="cards">Sammlung</button>
+    <button role="tab" id="t-sets" aria-selected="false" data-tab="sets" tabindex="-1">Sets</button>
+    <button role="tab" id="t-buys" aria-selected="false" data-tab="buys" tabindex="-1">Käufe</button>
+    <button role="tab" id="t-acc" aria-selected="false" data-tab="acc" tabindex="-1">Konto</button>
+  </div>
+
+  <section class="panel" id="p-cards" role="tabpanel" aria-labelledby="t-cards">
+    <div class="stats">
+      <div class="stat"><span>Karten</span><b id="stN">0</b></div>
+      <div class="stat"><span>Wert (Ø 7 Tage)</span><b id="stV">0,00 €</b></div>
+      <div class="stat"><span>Ausgegeben</span><b id="stI">0,00 €</b></div>
+      <div class="stat"><span>Gewinn / Verlust</span><b id="stP">0,00 €</b></div>
+    </div>
+    <fieldset>
+      <legend>Karte hinzufügen</legend>
+      <div class="searchbar">
+        <select class="field" id="lang" aria-label="Sprache der Karte">
+          <option>Deutsch</option><option>Englisch</option><option>Französisch</option><option>Italienisch</option><option>Spanisch</option><option>Portugiesisch</option><option>Japanisch</option><option>Koreanisch</option><option>Chinesisch</option>
+        </select>
+        <input class="field" id="q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Nummer wie auf der Karte, z. B. MEW 199 oder 044/128">
+      </div>
+      <div class="rows res sunken" id="res" hidden></div>
+      <p class="hint" id="resHint" style="margin-top:6px">Tipp: Set-Kürzel und Nummer stehen unten links auf der Karte. "Hinzufügen" legt sie direkt in deine Sammlung.</p>
+    </fieldset>
+    <div class="mainrow">
+      <fieldset>
+        <legend>Meine Sammlung</legend>
+        <div class="listhead">
+          <input class="field" id="cq" type="search" autocomplete="off" placeholder="In der Sammlung suchen" aria-label="In der Sammlung suchen">
+          <label for="sort">Sortieren: <select class="field" id="sort"><option value="total">Wert gesamt</option><option value="price">Wert pro Karte</option><option value="pl">Gewinn</option><option value="name">Name</option><option value="set">Set</option><option value="added">Zuletzt hinzugefügt</option></select></label>
+        </div>
+        <div class="rows coll sunken" id="coll"></div>
+      </fieldset>
+      <fieldset class="det" id="det"><legend>Details</legend></fieldset>
+    </div>
+    <div class="charts">
+      <fieldset><legend id="c1t">Verlauf: Karte</legend><div class="chart sunken"><canvas id="c1" role="img" aria-label="Preisverlauf der gewählten Karte"></canvas></div><div class="cap" id="c1c"></div></fieldset>
+      <fieldset><legend>Verlauf: Sammlung</legend><div class="chart sunken"><canvas id="c2" role="img" aria-label="Wertverlauf der Sammlung"></canvas></div><div class="cap" id="c2c"></div></fieldset>
+    </div>
+  </section>
+
+  <section class="panel" id="p-sets" role="tabpanel" aria-labelledby="t-sets" hidden>
+    <div class="bar">
+      <label for="cat">Katalog: <select class="field" id="cat"><option value="intl">International (DE, EN, FR, IT, ES)</option><option value="asia">Japan und Asien</option></select></label>
+      <label class="grow" for="sq"><input class="field" id="sq" type="search" autocomplete="off" placeholder="Set suchen, z. B. MEW, 151, 30 Jahre"></label>
+      <label for="mine"><input type="checkbox" id="mine"> Nur Sets mit meinen Karten</label>
+    </div>
+    <div class="setsbox sunken" id="sets"></div>
+  </section>
+
+  <section class="panel" id="p-buys" role="tabpanel" aria-labelledby="t-buys" hidden>
+    <fieldset>
+      <legend id="bLegend">Kauf eintragen</legend>
+      <form class="buyform" id="bForm" novalidate>
+        <label>Was <input class="field" id="bName" autocomplete="off" placeholder="z. B. Tin-Box 30 Jahre, Booster, Display"></label>
+        <label>Datum <input class="field" id="bDate" type="date"></label>
+        <label>Preis (€) <input class="field" id="bPrice" inputmode="decimal" placeholder="0,00"></label>
+        <button class="btn" type="submit" id="bOk">Eintragen</button>
+        <button class="btn" type="button" id="bDel" hidden>Entfernen</button>
+      </form>
+      <p class="err" id="bErr"></p>
+    </fieldset>
+    <fieldset><legend>Meine Käufe</legend><div class="rows sunken" id="buys"></div></fieldset>
+    <p class="hint">Einzelkarten mit eigenem Preis trägst du direkt bei der Karte als Kaufpreis ein. Hier kommen Booster, Tin-Boxen und alles andere rein, der Betrag zählt bei "Ausgegeben" mit.</p>
+  </section>
+
+  <section class="panel" id="p-acc" role="tabpanel" aria-labelledby="t-acc" hidden>
+    <div class="acc">
+      <fieldset><legend>Konto</legend><p id="accInfo" style="margin:0 0 10px"></p><div class="btns"><button class="btn" type="button" id="logoutBtn">Abmelden</button></div></fieldset>
+      <fieldset><legend>Sicherung</legend>
+        <p class="hint" style="margin-bottom:10px">Exportiert deine ganze Sammlung als Datei, oder liest eine solche Datei wieder ein (zum Beispiel "meine-sammlung.json").</p>
+        <div class="btns"><button class="btn" type="button" id="exportBtn">Exportieren</button><label class="btn" for="importFile" style="display:inline-flex;align-items:center">Importieren...</label><input type="file" id="importFile" accept=".json,application/json" hidden></div>
+      </fieldset>
+      <fieldset><legend>Preise</legend><p id="priceInfo" style="margin:0"></p></fieldset>
+    </div>
+  </section>
+</div>
+
+<div class="layer" id="layer" hidden>
+  <form class="dlg" id="dlgMan" hidden novalidate>
+    <div class="tb">Karte von Hand eintragen</div>
+    <div class="body">
+      <p class="hint">Für Karten, die nicht im Katalog stehen. Den Wert trägst du selbst ein.</p>
+      <label>Name <input class="field" id="mName" autocomplete="off"></label>
+      <label>Nummer <input class="field" id="mNum" autocomplete="off" placeholder="z. B. 049/132"></label>
+      <label>Wert pro Karte (€) <input class="field" id="mVal" inputmode="decimal" placeholder="optional"></label>
+      <p class="err" id="mErr"></p>
+    </div>
+    <div class="btns"><button class="btn" type="submit">Hinzufügen</button><button class="btn" type="button" data-close>Abbrechen</button></div>
+  </form>
+  <form class="dlg" id="dlgAsk" hidden novalidate>
+    <div class="tb">Karte entfernen</div>
+    <div class="body"><p id="askText" style="margin:0"></p></div>
+    <div class="btns"><button class="btn" type="submit">Ja</button><button class="btn" type="button" data-close>Nein</button></div>
+  </form>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+  const EUR = new Intl.NumberFormat('de-DE', {style:'currency', currency:'EUR'});
+  const SHORT = {Deutsch:'DE', Englisch:'EN', Französisch:'FR', Italienisch:'IT', Spanisch:'ES', Portugiesisch:'PT', Japanisch:'JP', Koreanisch:'KR', Chinesisch:'CN'};
+  const catOf = l => ['Japanisch','Koreanisch','Chinesisch'].includes(l) ? 'asia' : 'intl';
+  const pad = n => String(n).padStart(2,'0');
+  const today = () => { const t = new Date(); return t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate()); };
+  const dDE = d => { if (!d) return ''; const [y,m,dd] = String(d).slice(0,10).split('-'); return dd+'.'+m+'.'+y; };
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num = s => { const t = String(s ?? '').trim().replace(/\s|€/g,''); if (!t) return NaN; return Number(t.includes(',') ? t.replace(/\./g,'').replace(',', '.') : t); };
+  const r2 = n => Math.round(n * 100) / 100;
+  const eur = v => v == null ? '-' : EUR.format(v);
+  const signCls = n => n == null ? 'muted' : n > 0.004 ? 'gain' : n < -0.004 ? 'loss' : 'muted';
+  const signEUR = n => n == null ? '-' : (n > 0.004 ? '+' : '') + EUR.format(n);
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[-_.·']/g,' ').replace(/\s+/g,' ').trim();
+  const nk = s => String(s || '').toLowerCase().replace(/^0+(?=\w)/,'');
+  const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+  const S = {cards:[], buys:[], snaps:[], tab:'cards', sel:null, bsel:null, sort:'total', cq:'', cat:{}, mode:'local', user:null,
+    setsCat:'intl', sq:'', mine:false, openSet:null, askFn:null};
+
+  // ---------- Bilder (TCGdex) ----------
+  const ASSET = 'https://assets.tcgdex.net/';
+  function cardImgs(k, sr, setId, lid, q) {
+    const p = '/' + encodeURIComponent(sr) + '/' + encodeURIComponent(setId) + '/' + encodeURIComponent(lid) + '/' + q + '.webp';
+    return k === 'asia' ? [ASSET + 'ja' + p] : [ASSET + 'de' + p, ASSET + 'en' + p];
+  }
+  function logoImgs(k, sr, setId) {
+    const p = '/' + encodeURIComponent(sr) + '/' + encodeURIComponent(setId) + '/logo.webp';
+    return k === 'asia' ? [ASSET + 'ja' + p, ASSET + 'en' + p] : [ASSET + 'de' + p, ASSET + 'en' + p];
+  }
+  function imgTag(urls, cls, alt, lazy) {
+    if (!urls.length) return '';
+    return `<img class="${cls}" src="${esc(urls[0])}" data-fb="${esc(urls.slice(1).join(' '))}" alt="${esc(alt)}"${lazy ? ' loading="lazy"' : ''} decoding="async">`;
+  }
+  document.addEventListener('error', e => {
+    const img = e.target; if (!(img instanceof HTMLImageElement) || img.dataset.fb == null) return;
+    const rest = img.dataset.fb.split(' ').filter(Boolean);
+    if (rest.length) { img.dataset.fb = rest.slice(1).join(' '); img.src = rest[0]; }
+    else { img.removeAttribute('data-fb'); img.style.visibility = 'hidden'; const w = img.closest('.logo'); if (w) w.hidden = true; }
+  }, true);
+
+  // ---------- Katalog mit Preisen ----------
+  const catP = {};
+  function loadCat(k) {
+    if (!catP[k]) catP[k] = fetch('data/catalog-' + k + '.json').then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+      const byId = new Map(), idx = new Map(), codes = new Set();
+      d.sets.forEach(s => { byId.set(s.id, s); codes.add(norm(s.id)); if (s.a) codes.add(norm(s.a)); s.c.forEach(c => idx.set(k + ':' + s.id + '/' + c[0], {s, c})); });
+      S.cat[k] = {k, u:d.u, sets:d.sets, byId, idx, codes}; render(); ensureSnap(); return S.cat[k];
+    }).catch(e => { delete catP[k]; throw e; });
+    return catP[k];
+  }
+  const code = s => (s.a || s.id).toUpperCase();
+  const printed = (s, l) => (s.o > 0 && /^\d+$/.test(l)) ? l + '/' + String(s.o).padStart(Math.min(l.length, 3), '0') : l;
+  const rowPrice = (c, variant) => variant === 'r' ? (c[3] ?? c[2] ?? null) : (c[2] ?? c[3] ?? null);
+
+  function search(cat, q, limit) {
+    let total = null; const nums = [], words = [];
+    String(q).replace(/[,;#]/g, ' ').split(/\s+/).filter(Boolean).forEach(tok => {
+      const m = tok.match(/^([a-z]{0,6}\d+[a-z]?)\/([a-z]{0,6}\d+)$/i);
+      if (m) { nums.push(nk(m[1])); if (/^\d+$/.test(m[2])) total = +m[2]; return; }
+      if (/^\d+[a-z]?$/i.test(tok) && !cat.codes.has(norm(tok))) nums.push(nk(tok)); else words.push(norm(tok));
+    });
+    const out = [], exact = total != null && cat.sets.some(s => s.o === total);
+    for (const s of cat.sets) {
+      if (total != null && exact && s.o !== total) continue;
+      const rest = words.filter(w => w !== norm(s.a) && w !== norm(s.id)), setHit = rest.length !== words.length, sn = norm(s.n);
+      if (!nums.length && !rest.length && !setHit) continue;
+      for (const c of s.c) {
+        if (nums.length && !nums.includes(nk(c[0]))) continue;
+        const cn = norm(c[1]);
+        if (!rest.every(w => cn.includes(w) || sn.includes(w) || nk(c[0]) === w)) continue;
+        out.push({s, c}); if (out.length >= limit) return out;
+      }
+    }
+    return out;
+  }
+
+  // ---------- Werte ----------
+  function pts(c) {
+    let arr;
+    if (c.manual) arr = (c.hist || []).map(h => ({d:h.d, v:+h.v})).filter(p => !isNaN(p.v));
+    else {
+      arr = [];
+      for (const sn of S.snaps) { const a = sn.p && sn.p[c.key]; if (a) { const v = c.variant === 'r' ? (a[1] ?? a[0]) : (a[0] ?? a[1]); if (v != null) arr.push({d:sn.d, v}); } }
+      const cat = S.cat[c.cat], hit = cat && cat.idx.get(c.key);
+      if (hit) { const v = rowPrice(hit.c, c.variant); if (v != null) { arr = arr.filter(p => p.d !== cat.u); arr.push({d:cat.u, v}); } }
+    }
+    return arr.sort((a,b) => a.d.localeCompare(b.d));
+  }
+  const price = c => { const p = pts(c); return p.length ? p[p.length-1].v : null; };
+  const qty = c => Math.max(1, Math.round(+c.qty || 1));
+  const hasBuy = c => c.buy != null && c.buy !== '' && !isNaN(+c.buy);
+  const pl = c => { const v = price(c); return hasBuy(c) && v != null ? (v - c.buy) * qty(c) : null; };
+  function totals() {
+    let val = 0, inv = S.buys.reduce((a,b) => a + (+b.price || 0), 0), n = 0;
+    S.cards.forEach(c => { val += (price(c) || 0) * qty(c); n += qty(c); if (hasBuy(c)) inv += c.buy * qty(c); });
+    return {val, inv, n, pl: val - inv};
+  }
+  function collSeries() {
+    const cs = S.cards.map(c => ({c, p: pts(c), q: qty(c)})), dates = new Set();
+    cs.forEach(x => { x.p.forEach(p => dates.add(p.d)); if (x.c.added) dates.add(x.c.added); });
+    return [...dates].filter(Boolean).sort().slice(-160).map(d => {
+      let v = 0;
+      for (const x of cs) {
+        if ((x.c.added || (x.p[0] && x.p[0].d) || d) > d || !x.p.length) continue;
+        let val = x.p[0].v; for (const p of x.p) { if (p.d <= d) val = p.v; else break; }
+        v += val * x.q;
+      }
+      return {d, v};
+    });
+  }
+  // Wochenpunkt für den Verlauf: einmal pro Katalog-Stand speichern
+  let snapBusy = false;
+  async function ensureSnap() {
+    const u = S.cat.intl && S.cat.intl.u;
+    if (!u || snapBusy || !S.loaded || S.snaps.some(s => s.d === u)) return;
+    const keys = S.cards.filter(c => !c.manual && c.key);
+    if (!keys.length) return;
+    if (keys.some(c => c.cat === 'asia') && !S.cat.asia) { loadCat('asia').catch(() => {}); return; }
+    const p = {};
+    keys.forEach(c => { const hit = S.cat[c.cat] && S.cat[c.cat].idx.get(c.key); if (hit && hit.c.length > 2) p[c.key] = hit.c.slice(2); });
+    if (!Object.keys(p).length) return;
+    snapBusy = true;
+    const doc = {id:'s-' + u, d:u, p};
+    S.snaps.push(doc); S.snaps.sort((a,b) => a.d.localeCompare(b.d));
+    await store.put(doc, 'snap'); snapBusy = false;
+  }
+
+  // ---------- Speicher: Supabase oder lokal ----------
+  const CFG = window.PKT_CONFIG || {};
+  const cloud = !!(CFG.supabaseUrl && CFG.supabaseKey && window.supabase);
+  const sb = cloud ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {auth:{persistSession:true, autoRefreshToken:true}}) : null;
+  const LS = 'pkt-app-v1';
+  const arrOf = kind => kind === 'card' ? S.cards : kind === 'buy' ? S.buys : S.snaps;
+  function applyLocal(doc, kind) { const arr = arrOf(kind), i = arr.findIndex(x => x.id === doc.id); if (i >= 0) arr[i] = doc; else arr.push(doc); }
+  function lsSave() { try { localStorage.setItem(LS, JSON.stringify({cards:S.cards, buys:S.buys, snaps:S.snaps})); } catch {} }
+  const store = {
+    async load() {
+      if (!sb) { let d = null; try { d = JSON.parse(localStorage.getItem(LS) || 'null'); } catch {} S.cards = (d && d.cards) || []; S.buys = (d && d.buys) || []; S.snaps = (d && d.snaps) || []; return true; }
+      const all = []; let from = 0;
+      while (true) {
+        const {data, error} = await sb.from('items').select('id,kind,data').range(from, from + 999);
+        if (error) { toast('Laden hat nicht geklappt: ' + error.message); return false; }
+        all.push(...data); if (data.length < 1000) break; from += 1000;
+      }
+      const pick = k => all.filter(r => r.kind === k).map(r => Object.assign({}, r.data, {id:r.id}));
+      S.cards = pick('card'); S.buys = pick('buy'); S.snaps = pick('snap').filter(s => s.d && s.p).sort((a,b) => a.d.localeCompare(b.d));
+      return true;
+    },
+    async put(doc, kind) {
+      applyLocal(doc, kind); render();
+      if (!sb) { lsSave(); return true; }
+      const data = Object.assign({}, doc); delete data.id;
+      const {error} = await sb.from('items').upsert({user_id:S.user.id, id:doc.id, kind, data, updated_at:new Date().toISOString()}, {onConflict:'user_id,id'});
+      if (error) { toast('Speichern hat nicht geklappt: ' + error.message); return false; }
+      return true;
+    },
+    async del(id, kind) {
+      const arr = arrOf(kind), i = arr.findIndex(x => x.id === id); if (i >= 0) arr.splice(i, 1); render();
+      if (!sb) { lsSave(); return; }
+      const {error} = await sb.from('items').delete().eq('id', id);
+      if (error) toast('Das hat nicht geklappt: ' + error.message);
+    }
+  };
+
+  // ---------- Hinzufügen ----------
+  function ownedCount(key) { return S.cards.filter(c => c.key === key).reduce((a,c) => a + qty(c), 0); }
+  async function addCard(k, s, c, variant, lang) {
+    const key = k + ':' + s.id + '/' + c[0];
+    const ex = S.cards.find(x => x.key === key && (x.variant || 'n') === variant && x.lang === lang);
+    const name = c[1] || 'Karte ' + c[0];
+    if (ex) { S.sel = ex.id; await store.put(Object.assign({}, ex, {qty: qty(ex) + 1}), 'card'); toast(name + ' ist jetzt ' + (qty(ex) + 1) + 'x in deiner Sammlung.'); return; }
+    const doc = {id:newId('c'), key, cat:k, setId:s.id, localId:c[0], name, set:s.n, code:code(s), num:printed(s, c[0]), sr:s.sr || '', lang, variant, qty:1, buy:null, added:today()};
+    S.sel = doc.id; await store.put(doc, 'card'); ensureSnap(); toast(name + (variant === 'r' ? ' (Reverse Holo)' : '') + ' hinzugefügt.');
+  }
+
+  // ---------- Suche ----------
+  let qT = null, qSeq = 0;
+  function runSearch() {
+    const q = $('#q').value.trim(), box = $('#res'), k = catOf($('#lang').value), seq = ++qSeq;
+    if (!q) { box.hidden = true; $('#resHint').hidden = false; return; }
+    box.hidden = false; $('#resHint').hidden = true;
+    if (!S.cat[k]) box.innerHTML = '<p class="muted">Katalog wird geladen...</p>';
+    loadCat(k).then(cat => {
+      if (seq !== qSeq) return;
+      const hits = search(cat, q, 40);
+      box._hits = hits; box._k = cat.k;
+      box.innerHTML = hits.map((h, i) => resultRow(cat.k, h.s, h.c, i)).join('') +
+        `<p class="muted">${hits.length ? (hits.length >= 40 ? 'Mehr als 40 Treffer, gib Set-Kürzel und Nummer zusammen ein. ' : '') : 'Keine Karte gefunden. Prüf Sprache und Nummer. '}Nicht dabei? <a href="#" data-act="manual">Von Hand eintragen</a></p>`;
+    }).catch(() => { if (seq === qSeq) box.innerHTML = '<p class="muted">Der Katalog konnte nicht geladen werden. <a href="#" data-act="manual">Von Hand eintragen</a></p>'; });
+  }
+  function resultRow(k, s, c, i) {
+    const n = ownedCount(k + ':' + s.id + '/' + c[0]), v = c[2] ?? null, vr = c[3] ?? null;
+    return `<div class="row${n ? ' own' : ''}">${s.sr ? imgTag(cardImgs(k, s.sr, s.id, c[0], 'low'), 'th', '', true) : '<span class="th"></span>'}<span class="no">${esc(code(s))} ${esc(printed(s, c[0]))}</span>
+      <span class="nm"><b>${esc(c[1] || '(ohne Namen)')}</b><small>${esc(s.n)} · ${esc((s.d || '').slice(0,4))}${n ? ' · <span class="have">✓ ' + n + 'x in Sammlung</span>' : ''}</small></span>
+      <span class="pr">${v != null ? '<b>' + eur(v) + '</b>' : '<span class="muted">kein Preis</span>'}${vr != null ? '<small>Reverse ' + eur(vr) + '</small>' : ''}</span>
+      <span class="act"><button class="btn add" type="button" data-add="${i}" data-v="n">Hinzufügen</button>${vr != null ? `<button class="btn" type="button" data-add="${i}" data-v="r" title="Als Reverse Holo hinzufügen">RH</button>` : ''}</span></div>`;
+  }
+
+  // ---------- Sammlung ----------
+  function visible() {
+    const q = norm(S.cq);
+    const arr = S.cards.filter(c => !q || norm([c.name, c.set, c.code, c.num, c.lang].join(' ')).includes(q));
+    const f = {total:c => -((price(c) || 0) * qty(c)), price:c => -(price(c) || 0), pl:c => -(pl(c) ?? -1e12), name:c => c.name || '', set:c => (c.set || '') + ' ' + String(c.localId || '').padStart(4,'0'), added:c => -Date.parse(c.added || 0) || 0}[S.sort];
+    return arr.sort((a,b) => { const x = f(a), y = f(b); return (typeof x === 'string' ? x.localeCompare(y, 'de', {numeric:true}) : x - y) || String(a.name).localeCompare(String(b.name), 'de'); });
+  }
+  function renderColl() {
+    const box = $('#coll');
+    if (!S.loaded) { box.innerHTML = '<p class="muted">Sammlung wird geladen...</p>'; return; }
+    if (!S.cards.length) { box.innerHTML = '<p>Noch keine Karten. Gib oben die Nummer einer Karte ein und klick auf "Hinzufügen". Deine bisherige Sammlung holst du im Reiter "Konto" über "Importieren" rein.</p>'; return; }
+    const rows = visible();
+    box.innerHTML = `<div class="crow h"><span>Karte</span><span>Anz.</span><span>Pro Karte</span><span>Gesamt</span><span>+/-</span></div>` + (rows.length ? rows.map(c => {
+      const v = price(c), p = pl(c);
+      return `<div class="crow" role="option" tabindex="0" data-id="${esc(c.id)}" aria-selected="${c.id === S.sel}">
+        <span><b>${esc(c.name)}${c.variant === 'r' ? ' <small style="display:inline">RH</small>' : ''}</b><small>${esc([c.code && c.num ? c.code + ' ' + c.num : c.num, c.set, SHORT[c.lang] || c.lang].filter(Boolean).join(' · '))}</small></span>
+        <span>${qty(c)}x</span><span>${eur(v)}</span><span><b>${v == null ? '-' : eur(v * qty(c))}</b></span><span class="${signCls(p)}">${signEUR(p)}</span></div>`;
+    }).join('') : `<p class="muted">Keine Karte passt zu "${esc(S.cq)}".</p>`);
+  }
+  function renderStats() {
+    const T = totals();
+    $('#stN').textContent = T.n; $('#stV').textContent = EUR.format(T.val); $('#stI').textContent = EUR.format(T.inv);
+    $('#stP').textContent = signEUR(T.pl); $('#stP').className = signCls(T.pl);
+    const u = S.cat.intl && S.cat.intl.u;
+    $('#meta').textContent = (u ? 'Preise Ø 7 Tage, Stand ' + dDE(u) : 'Preise werden geladen') + (sb ? '' : ' · nur auf diesem Gerät');
+    $('#priceInfo').textContent = (u ? 'Aktueller Preisstand: ' + dDE(u) + '. ' : '') + 'Die Preise kommen aus dem Cardmarket-Preisguide (Durchschnitt der letzten 7 Tage) und werden jeden Montag automatisch erneuert. Einmal pro Woche öffnen reicht, damit der Verlauf einen neuen Punkt bekommt.';
+    $('#accInfo').textContent = sb ? (S.user ? 'Angemeldet als ' + S.user.email + '. Deine Sammlung ist auf allen Geräten dieselbe.' : '') : 'Kein Online-Konto eingerichtet. Die Sammlung liegt nur auf diesem Gerät.';
+    $('#logoutBtn').hidden = !sb;
+  }
+  function renderDet() {
+    const c = S.cards.find(x => x.id === S.sel), box = $('#det');
+    if (!c) { box.innerHTML = '<legend>Details</legend><p class="muted" style="margin:0">Klick eine Karte in deiner Sammlung an. Hier stellst du Anzahl, Kaufpreis und Sprache ein.</p>'; return; }
+    const v = price(c), p = pl(c), hit = S.cat[c.cat] && S.cat[c.cat].idx.get(c.key), vr = hit ? hit.c[3] ?? null : null;
+    const imgs = !c.manual && c.sr ? cardImgs(c.cat, c.sr, c.setId, c.localId, 'low') : [];
+    const big = !c.manual && c.sr ? cardImgs(c.cat, c.sr, c.setId, c.localId, 'high')[0] : null;
+    const cm = 'https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=' + encodeURIComponent(String(c.name).replace(/\(.*?\)/g,'').trim());
+    box.innerHTML = `<legend>Details</legend>
+      <div class="top">${imgs.length ? `<a class="cardimg sunken" href="${esc(big)}" target="_blank" rel="noopener" title="Groß ansehen">${imgTag(imgs, '', 'Kartenbild ' + c.name, false)}</a>` : ''}
+      <div><p class="name">${esc(c.name)}</p><p class="sub">${esc([c.code && c.num ? c.code + ' ' + c.num : c.num, c.set].filter(Boolean).join(' · '))}</p>
+      <div class="price">${c.manual ? 'Eigener Wert' : 'Cardmarket Ø 7 Tage'}${c.variant === 'r' ? ' (Reverse Holo)' : ''}<br><b>${eur(v)}</b>${qty(c) > 1 && v != null ? `<br><span class="muted">× ${qty(c)} = ${eur(v * qty(c))}</span>` : ''}${p != null ? `<br><span class="${signCls(p)}">${signEUR(p)} gegenüber Kaufpreis</span>` : ''}</div></div></div>
+      <dl class="kv">
+        <dt>Anzahl</dt><dd><span class="step"><button class="btn sq" type="button" data-qty="-1" aria-label="Eine weniger">−</button><b>${qty(c)}</b><button class="btn sq" type="button" data-qty="1" aria-label="Eine mehr">+</button></span></dd>
+        <dt><label for="dBuy">Kaufpreis / Stk.</label></dt><dd><input class="field" id="dBuy" inputmode="decimal" placeholder="leer, z. B. wenn gezogen" value="${hasBuy(c) ? String((+c.buy).toFixed(2)).replace('.', ',') : ''}"></dd>
+        <dt><label for="dLang">Sprache</label></dt><dd><select class="field" id="dLang">${Object.keys(SHORT).map(l => `<option${l === c.lang ? ' selected' : ''}>${l}</option>`).join('')}</select></dd>
+        ${!c.manual && (vr != null || c.variant === 'r') ? `<dt><label for="dVar">Variante</label></dt><dd><select class="field" id="dVar"><option value="n"${c.variant !== 'r' ? ' selected' : ''}>Normal / Holo</option><option value="r"${c.variant === 'r' ? ' selected' : ''}>Reverse Holo</option></select></dd>` : ''}
+        ${c.manual ? `<dt><label for="dVal">Wert / Stk.</label></dt><dd><input class="field" id="dVal" inputmode="decimal" placeholder="0,00" value="${v != null ? String(v.toFixed(2)).replace('.', ',') : ''}"></dd>` : ''}
+      </dl>
+      <div class="links"><a href="${cm}" target="_blank" rel="noopener">Auf Cardmarket ansehen ↗</a></div>`;
+    const save = patch => store.put(Object.assign({}, c, patch), 'card');
+    const buyIn = $('#dBuy'); let bt = null;
+    buyIn.addEventListener('input', () => { clearTimeout(bt); bt = setTimeout(() => { const t = buyIn.value.trim(); const n = t ? num(t) : null; if (t && (isNaN(n) || n < 0)) return; save({buy: n == null ? null : r2(n)}); }, 800); });
+    $('#dLang').addEventListener('change', e => save({lang: e.target.value}));
+    const dv = $('#dVar'); if (dv) dv.addEventListener('change', e => save({variant: e.target.value}));
+    const dval = $('#dVal'); let vt = null;
+    if (dval) dval.addEventListener('input', () => { clearTimeout(vt); vt = setTimeout(() => { const n = num(dval.value); if (isNaN(n) || n < 0) return; const h = (c.hist || []).filter(x => x.d !== today()); h.push({d:today(), v:r2(n)}); save({hist:h}); }, 800); });
+  }
+
+  // ---------- Diagramme im XP-Stil ----------
+  function draw(cv, pts, empty) {
+    const wrap = cv.parentElement, W = wrap.clientWidth - 4, H = wrap.clientHeight - 4;
+    if (W <= 0 || H <= 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const g = cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0);
+    const css = getComputedStyle(document.documentElement), col = n => css.getPropertyValue(n).trim();
+    g.fillStyle = '#ffffff'; g.fillRect(0,0,W,H);
+    g.font = '11px ' + col('--ui'); g.fillStyle = col('--xp-text');
+    const h = pts.map(p => ({t: Date.parse(p.d + 'T12:00:00'), v: +p.v})).filter(p => !isNaN(p.t) && !isNaN(p.v));
+    if (!h.length) { g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(empty, W/2, H/2); return; }
+    const L = 70, R = 16, T = 16, B = 26;
+    let lo = Math.min(...h.map(p => p.v)), hi = Math.max(...h.map(p => p.v));
+    if (hi - lo < 0.01) { lo = Math.max(0, lo * 0.8); hi = hi * 1.2 || 1; } else { const sp = hi - lo; lo = Math.max(0, lo - sp * .15); hi += sp * .15; }
+    const t0 = h[0].t, t1 = h[h.length-1].t;
+    const X = t => h.length === 1 ? L + (W - L - R) / 2 : L + (t - t0) / (t1 - t0 || 1) * (W - L - R);
+    const Y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+    g.strokeStyle = col('--xp-grid'); g.lineWidth = 1; g.textAlign = 'right'; g.textBaseline = 'middle';
+    for (let i = 0; i <= 3; i++) { const v = lo + (hi - lo) * i / 3, y = Math.round(Y(v)) + .5; g.beginPath(); g.moveTo(L, y); g.lineTo(W - R, y); g.stroke(); g.fillText(EUR.format(v), L - 8, y); }
+    const dl = t => { const d = new Date(t); return pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '.' + String(d.getFullYear()).slice(2); };
+    g.textBaseline = 'alphabetic'; g.textAlign = 'left'; g.fillText(dl(t0), L, H - 8);
+    if (h.length > 1) { g.textAlign = 'right'; g.fillText(dl(t1), W - R, H - 8); }
+    const blue = col('--xp-blue');
+    if (h.length > 1) {
+      const grad = g.createLinearGradient(0, T, 0, H - B); grad.addColorStop(0, col('--xp-fill')); grad.addColorStop(1, 'rgba(36,94,219,0)');
+      g.beginPath(); h.forEach((p,i) => i ? g.lineTo(X(p.t), Y(p.v)) : g.moveTo(X(p.t), Y(p.v))); g.lineTo(X(t1), H - B); g.lineTo(X(t0), H - B); g.closePath(); g.fillStyle = grad; g.fill();
+      g.beginPath(); h.forEach((p,i) => i ? g.lineTo(X(p.t), Y(p.v)) : g.moveTo(X(p.t), Y(p.v))); g.strokeStyle = blue; g.lineWidth = 2.5; g.lineJoin = 'round'; g.stroke();
+    }
+    h.forEach((p,i) => { const last = i === h.length - 1; g.beginPath(); g.arc(X(p.t), Y(p.v), last ? 4.5 : 3, 0, Math.PI*2); g.fillStyle = last ? blue : '#fff'; g.fill(); g.strokeStyle = blue; g.lineWidth = 2; g.stroke(); });
+    const last = h[h.length-1], lx = X(last.t);
+    g.font = 'bold 12px ' + col('--ui'); g.fillStyle = '#1b3f9a'; g.textBaseline = 'bottom';
+    g.textAlign = lx > W - 110 ? 'right' : (lx < L + 60 ? 'left' : 'center');
+    g.fillText(EUR.format(last.v), lx + (g.textAlign === 'right' ? -8 : g.textAlign === 'left' ? 8 : 0), Math.max(16, Y(last.v) - 8));
+  }
+  function renderCharts() {
+    const c = S.cards.find(x => x.id === S.sel);
+    $('#c1t').textContent = c ? 'Verlauf: ' + c.name : 'Verlauf: Karte';
+    const p = c ? pts(c) : [];
+    draw($('#c1'), p, c ? 'Noch kein Preis für diese Karte' : 'Wähle eine Karte aus');
+    $('#c1c').innerHTML = c ? (p.length ? `<span>${p.length} Messpunkt${p.length === 1 ? '' : 'e'} seit ${dDE(p[0].d)}</span><span>jede Woche kommt einer dazu</span>` : '<span>Kein Preis vorhanden</span>') : '<span>&nbsp;</span>';
+    const all = collSeries(); draw($('#c2'), all, 'Noch keine Karten');
+    $('#c2c').innerHTML = all.length > 1 ? `<span>seit ${dDE(all[0].d)}</span><span class="${signCls(all[all.length-1].v - all[0].v)}">${signEUR(all[all.length-1].v - all[0].v)}</span>` : all.length ? `<span>Verlauf startet am ${dDE(all[0].d)}</span><span>jede Woche kommt ein Punkt dazu</span>` : '<span>&nbsp;</span>';
+  }
+
+  // ---------- Sets ----------
+  function ownedIn(k, sid) { const m = new Map(); S.cards.forEach(c => { if (c.cat === k && c.setId === sid) m.set(nk(c.localId), (m.get(nk(c.localId)) || 0) + qty(c)); }); return m; }
+  function renderSets() {
+    const box = $('#sets');
+    if (!S.cat[S.setsCat]) box.innerHTML = '<p class="muted">Katalog wird geladen...</p>';
+    loadCat(S.setsCat).then(cat => {
+      if (S.tab !== 'sets') return;
+      if (S.openSet && cat.byId.get(S.openSet)) return renderSet(cat, cat.byId.get(S.openSet));
+      const q = norm(S.sq), mine = new Set(S.cards.filter(c => c.cat === cat.k).map(c => c.setId));
+      const sets = cat.sets.filter(s => (!q || norm([s.n, s.id, s.a, s.s, (s.d || '').slice(0,4)].join(' ')).includes(q)) && (!S.mine || mine.has(s.id)));
+      if (!sets.length) { box.innerHTML = `<p class="muted">${S.mine ? 'In diesem Katalog hast du noch keine Karten.' : 'Kein Set gefunden. Versuch es mit dem Kürzel von der Karte, zum Beispiel MEW.'}</p>`; return; }
+      const groups = []; sets.forEach(s => { let g = groups[groups.length-1]; if (!g || g.n !== s.s) groups.push(g = {n:s.s, l:[]}); g.l.push(s); });
+      box.innerHTML = groups.map(g => `<section class="series"><h3><span>${esc(g.n || 'Sonstige')}</span><span class="muted">${g.l.length} Sets</span></h3><div class="tiles">${g.l.map(s => {
+        const n = ownedIn(cat.k, s.id).size, tot = s.o || s.c.length, pct = Math.min(100, n / tot * 100);
+        return `<button type="button" class="tile${n ? ' has' : ''}" data-set="${esc(s.id)}">${s.sr ? `<span class="logo">${imgTag(logoImgs(cat.k, s.sr, s.id), '', 'Logo ' + s.n, true)}</span>` : ''}<span class="top"><span class="code">${esc(code(s))}</span><span class="muted">${esc((s.d || '').slice(0,4))}</span></span><span class="t" title="${esc(s.n)}">${esc(s.n)}</span><span class="prog" aria-hidden="true"><i style="width:${pct.toFixed(1)}%"></i></span><span class="prog-l"><span>${n} von ${tot}</span><span>${s.c.length} Karten</span></span></button>`;
+      }).join('')}</div></section>`).join('');
+    }).catch(() => { box.innerHTML = '<p class="muted">Der Katalog konnte nicht geladen werden. Prüf deine Verbindung.</p>'; });
+  }
+  function renderSet(cat, s) {
+    const own = ownedIn(cat.k, s.id), tot = s.o || s.c.length;
+    $('#sets').innerHTML = `<div class="sethead"><button class="btn" type="button" data-act="back">Zurück</button>${s.sr ? imgTag(logoImgs(cat.k, s.sr, s.id), '', 'Logo ' + s.n, false) : ''}<span class="code">${esc(code(s))}</span><h2>${esc(s.n)}</h2><span class="muted">${esc(s.s)} · ${dDE(s.d)}</span>
+      <span class="prog" aria-hidden="true"><i style="width:${Math.min(100, own.size / tot * 100).toFixed(1)}%"></i></span><span>${own.size} von ${tot} gesammelt</span></div>
+      <div class="rows sunken" id="setRows">${s.c.map((c, i) => resultRow(cat.k, s, c, i)).join('')}</div>`;
+    $('#setRows')._hits = s.c.map(c => ({s, c})); $('#setRows')._k = cat.k;
+  }
+
+  // ---------- Käufe ----------
+  function renderBuys() {
+    const rows = [...S.buys].sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const tot = rows.reduce((a,b) => a + (+b.price || 0), 0);
+    $('#buys').innerHTML = rows.length ? rows.map(b => `<div class="brow" data-bid="${esc(b.id)}" tabindex="0" aria-selected="${b.id === S.bsel}"><span>${dDE(b.date)}</span><span>${esc(b.name)}</span><span>${EUR.format(+b.price || 0)}</span></div>`).join('')
+      + `<div class="brow" style="cursor:default;font-weight:bold"><span></span><span>Summe</span><span>${EUR.format(tot)}</span></div>` : '<p class="muted">Noch keine Käufe eingetragen.</p>';
+    const b = S.buys.find(x => x.id === S.bsel);
+    $('#bLegend').textContent = b ? 'Kauf bearbeiten' : 'Kauf eintragen';
+    $('#bOk').textContent = b ? 'Speichern' : 'Eintragen'; $('#bDel').hidden = !b;
+  }
+  function fillBuyForm(b) {
+    $('#bName').value = b ? b.name : ''; $('#bDate').value = b ? (b.date || today()) : today();
+    $('#bPrice').value = b ? String((+b.price || 0).toFixed(2)).replace('.', ',') : ''; $('#bErr').textContent = '';
+  }
+
+  // ---------- Rendern ----------
+  function render() {
+    if (S.sel && !S.cards.some(c => c.id === S.sel)) S.sel = null;
+    renderStats();
+    if (S.tab === 'cards') { renderColl(); renderDet(); renderCharts(); if ($('#q').value.trim() && document.activeElement !== $('#q')) runSearch(); }
+    else if (S.tab === 'sets') renderSets();
+    else if (S.tab === 'buys') renderBuys();
+  }
+  function setTab(t) {
+    S.tab = t;
+    ['cards','sets','buys','acc'].forEach(k => { const on = k === t; $('#t-' + k).setAttribute('aria-selected', on); $('#t-' + k).tabIndex = on ? 0 : -1; $('#p-' + k).hidden = !on; });
+    render();
+  }
+
+  // ---------- Start, Anmeldung, Sync ----------
+  async function startApp() {
+    $('#login').hidden = true; $('#app').hidden = false;
+    S.loaded = false; render();
+    loadCat('intl').catch(() => toast('Der Kartenkatalog konnte nicht geladen werden.'));
+    const ok = await store.load(); S.loaded = ok;
+    if (S.cards.some(c => c.cat === 'asia')) loadCat('asia').catch(() => {});
+    render(); ensureSnap();
+  }
+  function showLogin() { $('#app').hidden = true; $('#login').hidden = false; $('#meta').textContent = ''; setTimeout(() => $('#lEmail').focus(), 0); }
+  async function boot() {
+    if (!sb) { S.mode = 'local'; startApp(); return; }
+    S.mode = 'cloud';
+    const {data} = await sb.auth.getSession();
+    if (data && data.session) { S.user = data.session.user; startApp(); } else showLogin();
+    sb.auth.onAuthStateChange((ev, session) => {
+      if (ev === 'SIGNED_OUT') { S.user = null; S.cards = []; S.buys = []; S.snaps = []; showLogin(); }
+      else if (ev === 'SIGNED_IN' && session && (!S.user || S.user.id !== session.user.id)) { S.user = session.user; startApp(); }
+    });
+  }
+  $('#loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = $('#lEmail').value.trim(), pw = $('#lPass').value;
+    if (!email || pw.length < 6) { $('#lErr').textContent = 'Bitte E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.'; return; }
+    $('#lErr').textContent = 'Melde an...';
+    const {error} = await sb.auth.signInWithPassword({email, password: pw});
+    $('#lErr').textContent = error ? (error.message.includes('Invalid') ? 'E-Mail oder Passwort stimmt nicht.' : error.message.includes('confirm') ? 'Bitte bestätige zuerst den Link in der E-Mail, dann nochmal anmelden.' : error.message) : '';
+  });
+  $('#signupBtn').addEventListener('click', async () => {
+    const email = $('#lEmail').value.trim(), pw = $('#lPass').value;
+    if (!email || pw.length < 6) { $('#lErr').textContent = 'Bitte E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.'; return; }
+    $('#lErr').textContent = 'Lege Konto an...';
+    const {data, error} = await sb.auth.signUp({email, password: pw});
+    if (error) { $('#lErr').textContent = error.message; return; }
+    $('#lErr').textContent = data.session ? '' : 'Konto angelegt. Bestätige den Link in der E-Mail und melde dich dann hier an.';
+  });
+  $('#logoutBtn').addEventListener('click', () => sb && sb.auth.signOut());
+  let lastSync = Date.now();
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible' || !sb || !S.user || Date.now() - lastSync < 15000) return;
+    lastSync = Date.now(); if (await store.load()) { render(); ensureSnap(); }
+  });
+
+  // ---------- Export / Import ----------
+  $('#exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({app:'pokemon-karten-tracker', v:1, exported:new Date().toISOString(), cards:S.cards, buys:S.buys, snaps:S.snaps}, null, 1)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'meine-sammlung-' + today() + '.json';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  });
+  $('#importFile').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+    let d; try { d = JSON.parse(await f.text()); } catch { toast('Die Datei ist keine gültige Sicherung.'); return; }
+    const groups = [['card', d.cards], ['buy', d.buys], ['snap', d.snaps]];
+    let n = 0;
+    for (const [kind, arr] of groups) for (const doc of (Array.isArray(arr) ? arr : [])) { if (doc && doc.id) { await store.put(doc, kind); n++; } }
+    toast(n ? n + ' Einträge importiert.' : 'In der Datei war nichts zum Importieren.'); ensureSnap();
+  });
+
+  // ---------- Dialoge ----------
+  function openDlg(id) { $('#layer').hidden = false; $$('.dlg').forEach(d => { d.hidden = d.id !== id; }); const f = $('#' + id).querySelector('input, button[type=submit]'); setTimeout(() => f && f.focus(), 0); }
+  function closeDlg() { $('#layer').hidden = true; }
+  $$('[data-close]').forEach(b => b.addEventListener('click', closeDlg));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#layer').hidden) closeDlg(); });
+  $('#dlgMan').addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = $('#mName').value.trim(), nr = $('#mNum').value.trim(), v = $('#mVal').value.trim() ? num($('#mVal').value) : null;
+    if (!name) { $('#mErr').textContent = 'Bitte gib einen Namen ein.'; $('#mName').focus(); return; }
+    if (v != null && (isNaN(v) || v < 0)) { $('#mErr').textContent = 'Der Wert muss eine Zahl sein, zum Beispiel 4,50.'; $('#mVal').focus(); return; }
+    const doc = {id:newId('c'), key:'man:' + newId('m'), manual:true, name, num:nr, lang:$('#lang').value, variant:'n', qty:1, buy:null, added:today(), hist: v != null ? [{d:today(), v:r2(v)}] : []};
+    closeDlg(); S.sel = doc.id; if (await store.put(doc, 'card')) toast(name + ' hinzugefügt.');
+  });
+  $('#dlgAsk').addEventListener('submit', e => { e.preventDefault(); const f = S.askFn; S.askFn = null; closeDlg(); f && f(); });
+
+  // ---------- Ereignisse ----------
+  $('#q').addEventListener('input', () => { clearTimeout(qT); qT = setTimeout(runSearch, 150); });
+  $('#lang').addEventListener('change', runSearch);
+  $('#cq').addEventListener('input', e => { S.cq = e.target.value; renderColl(); });
+  $('#sort').addEventListener('change', e => { S.sort = e.target.value; renderColl(); });
+  $('#cat').addEventListener('change', e => { S.setsCat = e.target.value; S.openSet = null; renderSets(); });
+  let sT = null; $('#sq').addEventListener('input', e => { clearTimeout(sT); sT = setTimeout(() => { S.sq = e.target.value; S.openSet = null; renderSets(); }, 150); });
+  $('#mine').addEventListener('change', e => { S.mine = e.target.checked; renderSets(); });
+  document.addEventListener('click', e => {
+    const tab = e.target.closest('[data-tab]'); if (tab) { setTab(tab.dataset.tab); return; }
+    const add = e.target.closest('[data-add]');
+    if (add) {
+      const box = add.closest('#res, #setRows'), h = box && box._hits && box._hits[+add.dataset.add]; if (!h) return;
+      const k = box._k, cur = $('#lang').value;
+      const lang = catOf(cur) === k ? cur : (k === 'asia' ? 'Japanisch' : 'Deutsch');
+      add.disabled = true; addCard(k, h.s, h.c, add.dataset.v, lang).finally(() => { add.disabled = false; if (box.id === 'res') runSearch(); }); return;
+    }
+    const a = e.target.closest('[data-act]');
+    if (a) { e.preventDefault(); if (a.dataset.act === 'manual') { $('#mName').value = ''; $('#mNum').value = /\d/.test($('#q').value) ? $('#q').value.trim() : ''; $('#mVal').value = ''; $('#mErr').textContent = ''; openDlg('dlgMan'); } if (a.dataset.act === 'back') { S.openSet = null; renderSets(); } return; }
+    const st = e.target.closest('[data-set]'); if (st) { S.openSet = st.dataset.set; renderSets(); $('#p-sets').scrollIntoView({block:'start'}); return; }
+    const row = e.target.closest('.crow[data-id]'); if (row) { S.sel = row.dataset.id; renderColl(); renderDet(); renderCharts(); if (window.matchMedia('(max-width: 900px)').matches) $('#det').scrollIntoView({block:'start', behavior:'smooth'}); return; }
+    const q = e.target.closest('[data-qty]');
+    if (q) {
+      const c = S.cards.find(x => x.id === S.sel); if (!c) return;
+      const n = qty(c) + (+q.dataset.qty);
+      if (n >= 1) { store.put(Object.assign({}, c, {qty:n}), 'card'); return; }
+      $('#askText').textContent = `"${c.name}" aus der Sammlung nehmen?`; S.askFn = () => store.del(c.id, 'card'); openDlg('dlgAsk'); return;
+    }
+    const br = e.target.closest('.brow[data-bid]'); if (br) { S.bsel = S.bsel === br.dataset.bid ? null : br.dataset.bid; fillBuyForm(S.buys.find(b => b.id === S.bsel)); renderBuys(); return; }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = e.target.closest && e.target.closest('.crow[data-id], .brow[data-bid]'); if (row) { e.preventDefault(); row.click(); }
+  });
+  $('#bForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = $('#bName').value.trim(), p = num($('#bPrice').value);
+    if (!name) { $('#bErr').textContent = 'Bitte gib an, was du gekauft hast.'; $('#bName').focus(); return; }
+    if (isNaN(p) || p < 0) { $('#bErr').textContent = 'Bitte gib einen Preis ein, zum Beispiel 24,99.'; $('#bPrice').focus(); return; }
+    const old = S.buys.find(b => b.id === S.bsel);
+    const b = Object.assign({}, old || {id:newId('b')}, {name, date:$('#bDate').value || today(), price:r2(p)});
+    S.bsel = null; fillBuyForm(null);
+    if (await store.put(b, 'buy')) toast(old ? 'Kauf gespeichert.' : name + ' eingetragen.');
+  });
+  $('#bDel').addEventListener('click', () => { const b = S.buys.find(x => x.id === S.bsel); if (!b) return; S.bsel = null; fillBuyForm(null); store.del(b.id, 'buy'); toast('Kauf entfernt.'); });
+  $$('.tabs button').forEach(b => b.addEventListener('keydown', e => {
+    const o = ['cards','sets','buys','acc'], i = o.indexOf(S.tab);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const n = o[(i + (e.key === 'ArrowRight' ? 1 : o.length - 1)) % o.length]; setTab(n); $('#t-' + n).focus(); }
+  }));
+  let tT = null; function toast(m) { const t = $('#toast'); t.textContent = m; t.hidden = false; clearTimeout(tT); tT = setTimeout(() => { t.hidden = true; }, 3500); }
+  let rT = null; window.addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { if (S.tab === 'cards') renderCharts(); }, 120); });
+
+  // ---------- Installieren ----------
+  let installEvt = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('#installBtn').hidden = false; });
+  $('#installBtn').addEventListener('click', async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null; $('#installBtn').hidden = true; });
+  window.addEventListener('appinstalled', () => { $('#installBtn').hidden = true; });
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+  fillBuyForm(null);
+  boot();
+})();
+</script>
+</body>
+</html>

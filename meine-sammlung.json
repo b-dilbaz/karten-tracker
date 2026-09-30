@@ -1,0 +1,69 @@
+{
+ "app": "pokemon-karten-tracker",
+ "v": 1,
+ "exported": "2026-09-30T19:10:00+02:00",
+ "cards": [
+  {
+   "added": "2026-09-30",
+   "buy": null,
+   "cat": "intl",
+   "code": "30C",
+   "key": "intl:30th/044",
+   "lang": "Deutsch",
+   "localId": "044",
+   "name": "Pikachu",
+   "num": "044/128",
+   "qty": 1,
+   "set": "30 Jahre",
+   "setId": "30th",
+   "sr": "me",
+   "variant": "n",
+   "id": "cmuoar7t0xwlzf"
+  },
+  {
+   "added": "2026-09-30",
+   "buy": null,
+   "hist": [],
+   "key": "man:mew-049-132",
+   "lang": "Chinesisch",
+   "manual": true,
+   "name": "Mew",
+   "num": "049/132",
+   "qty": 2,
+   "variant": "n",
+   "id": "cmuoaubwszb5jr"
+  },
+  {
+   "added": "2026-09-30",
+   "buy": null,
+   "cat": "intl",
+   "code": "BRS",
+   "key": "intl:swsh9/123",
+   "lang": "Deutsch",
+   "localId": "123",
+   "name": "Arceus VSTAR",
+   "num": "123/172",
+   "qty": 1,
+   "set": "Strahlende Sterne",
+   "setId": "swsh9",
+   "sr": "swsh",
+   "variant": "n",
+   "id": "cmuoawrxie7yep"
+  }
+ ],
+ "buys": [],
+ "snaps": [
+  {
+   "d": "2026-09-30",
+   "p": {
+    "intl:swsh9/123": [
+     3.46
+    ],
+    "intl:30th/044": [
+     1.97
+    ]
+   },
+   "id": "s-2026-09-30"
+  }
+ ]
+}
